@@ -1,2 +1,2 @@
 # ktools
-Docker container with kubectl and other utility tools
+Docker image with kubectl and other utility tools
