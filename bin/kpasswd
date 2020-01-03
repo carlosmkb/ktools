@@ -1,0 +1,84 @@
+#!/bin/bash
+############################################
+##  author: Carlos Mendes                 ##
+##                                        ##
+##  email: carlos.mendes@kelvininc.com    ##
+##  slack: carlos.mendes                  ##
+##  creation date: 2019/12/10             ##
+############################################
+set -e
+
+
+length=${LENGTH:-32}
+
+## check arguments ##########
+while [[ $# > 0 ]]; do
+  argumment="$1"
+  case $argumment in
+    -n|--namespace)
+      if [[ ! -z "$2" && "${2::1}" != "-" ]]; then
+        namespace="--namespace ${2,,}"
+        shift
+      else
+        echo "error: missing namespace name"
+        invalid=1
+      fi ;;
+    -d|--data)
+      if echo "$2" | jq -r type 2> /dev/null | grep -qs "object"; then
+        data="${2,,}"
+        shift
+      else
+        echo "error: missing or invalid json data"
+        invalid=1
+      fi ;;
+    -h|--help)
+      echo -e "ussage:\n\nsecret-passwd <secret_name> [--namespace <namespace>] [--data <json_map>]\n"
+      exit 0 ;;
+    -*) echo "error: unknown flag '$argumment'"; invalid=1 ;;
+    *)  secret="${1,,}" ;;
+  esac
+  shift
+done
+
+## validate arguments ##########
+
+if [[ -z "$secret" ]]; then
+  echo "error: missing secret name"
+  invalid=1
+fi
+
+if [[ $invalid -eq 1 ]]; then
+  echo "$usage"
+  exit 1
+fi
+
+json="$(kubectl get secret $namespace $secret -o json 2> /dev/null || echo)"
+
+if [[ -z "$json" ]]; then
+  password="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c $length | base64)"  
+  data_yaml="$(echo "$data" | yq -y '[. | to_entries[] | .value = (.value | @base64)] | from_entries')"
+
+  kubectl create $namespace -f <(echo "
+    kind: Secret
+    apiVersion: v1
+    metadata:
+      name: $secret
+    data:
+      password: $password
+      $data_yaml
+  ") > /dev/null
+
+  echo "$(date +"%Y/%m/%dT%H:%M:%S")  INFO   secret '$secret' created"
+else
+  password="$(echo $json | jq -r '.data.password' | base64 -d)"
+
+  echo "$(date +"%Y/%m/%dT%H:%M:%S")  INFO   secret '$secret' already exists"
+  
+  if [[ ! -z "$password" ]]; then
+    echo "$(date +"%Y/%m/%dT%H:%M:%S")  WARN   secret '$secret' doesn't have '.password' key"
+    # kubectl delete secret $namespace $secret > /dev/null
+  fi
+fi
+
+
+exit 0
