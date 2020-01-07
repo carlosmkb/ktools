@@ -11,6 +11,7 @@ RUN apk add --update \
       gettext \
       openssl \
       openssl-dev && \
+    pip install --upgrade awscli && \
     pip install --upgrade yq && \
     apk -v --purge del py-pip && \
     rm -rf /var/cache/apk/*
