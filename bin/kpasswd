@@ -10,6 +10,7 @@ set -e
 
 
 length=${LENGTH:-32}
+usage="\nusage:\n  secret-passwd --secret|-s <secret_name> [--namespace|-n <namespace>] [--password|-p <password>] [--data|-d <json_map>]\n"
 
 ## check arguments ##########
 while [[ $# > 0 ]]; do
@@ -23,6 +24,22 @@ while [[ $# > 0 ]]; do
         echo "error: missing namespace name"
         invalid=1
       fi ;;
+    -s|--secret)
+      if [[ ! -z "$2" && "${2::1}" != "-" ]]; then
+        secret="$2"
+        shift
+      else
+        echo "error: missing secret name"
+        invalid=1
+      fi ;;
+    -p|--password)
+      if [[ ! -z "$2" && "${2::1}" != "-" ]]; then
+        password="$2"
+        shift
+      else
+        echo "error: missing password value"
+        invalid=1
+      fi ;;
     -d|--data)
       if echo "$2" | jq -r type 2> /dev/null | grep -qs "object"; then
         data="${2,,}"
@@ -32,7 +49,7 @@ while [[ $# > 0 ]]; do
         invalid=1
       fi ;;
     -h|--help)
-      echo -e "ussage:\n\nsecret-passwd <secret_name> [--namespace <namespace>] [--data <json_map>]\n"
+      echo -e "$usage"
       exit 0 ;;
     -*) echo "error: unknown flag '$argumment'"; invalid=1 ;;
     *)  secret="${1,,}" ;;
@@ -47,16 +64,27 @@ if [[ -z "$secret" ]]; then
   invalid=1
 fi
 
+if [[ ! -z "$password" ]] && ! echo "$password" | base64 --decode &> /dev/null; then
+  echo "error: invalid base64 encoding in password value"
+  invalid=1
+fi
+
 if [[ $invalid -eq 1 ]]; then
-  echo "$usage"
+  echo -e "$usage"
   exit 1
 fi
 
 json="$(kubectl get secret $namespace $secret -o json 2> /dev/null || echo)"
 
 if [[ -z "$json" ]]; then
-  password="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c $length | base64)"  
-  data_yaml="$(echo "$data" | yq -y '[. | to_entries[] | .value = (.value | @base64)] | from_entries')"
+  if [[ -z "$password" ]]; then
+    password="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c $length | base64)"  
+  fi
+
+  if [[ ! -z "$data" ]]; then
+    data_yaml="$(echo "$data" | yq -y '[. | to_entries[] | .value = (.value | @base64)] | from_entries')"
+  fi
+
 
   kubectl create $namespace -f <(echo "
     kind: Secret
