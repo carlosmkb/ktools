@@ -6,7 +6,7 @@
 ##  slack: carlos.mendes                  ##
 ##  creation date: 2019/12/10             ##
 ############################################
-set -e
+[[ "$DEBUG" == "true" ]] && set -xe || set -e
 
 
 length=${LENGTH:-32}
