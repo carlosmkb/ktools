@@ -10,7 +10,7 @@
 
 
 length=${LENGTH:-32}
-usage="\nusage:\n  secret-passwd --secret|-s <secret_name> [--namespace|-n <namespace>] [--password|-p <password>] [--data|-d <json_map>]\n"
+usage="\nusage:\n  secret-passwd --secret|-s <secret_name> [--ok|-k] [--namespace|-n <namespace>] [--password|-p <password>] [--data|-d <json_map>]\n"
 
 ## check arguments ##########
 while [[ $# > 0 ]]; do
@@ -30,6 +30,13 @@ while [[ $# > 0 ]]; do
         shift
       else
         echo "error: missing secret name"
+        invalid=1
+      fi ;;
+    -k|--ok)
+      if [[ -z "$2" || "${2::1}" == "-" ]]; then
+        ok=1
+      else
+        echo "error: --ok option takes no argument"
         invalid=1
       fi ;;
     -p|--password)
@@ -64,7 +71,7 @@ if [[ -z "$secret" ]]; then
   invalid=1
 fi
 
-if [[ ! -z "$password" ]] && ! echo "$password" | base64 --decode &> /dev/null; then
+if [[ ! -z "$password" ]] && ! echo -n "$password" | base64 -d &> /dev/null; then
   echo "error: invalid base64 encoding in password value"
   invalid=1
 fi
@@ -91,6 +98,9 @@ if [[ -z "$json" ]]; then
     apiVersion: v1
     metadata:
       name: $secret
+      labels:
+        app: kpasswd
+        type: password
     data:
       password: $password
       $data_yaml
@@ -105,6 +115,10 @@ else
   if [[ ! -z "$password" ]]; then
     echo "$(date +"%Y/%m/%dT%H:%M:%S")  WARN   secret '$secret' doesn't have '.password' key"
     # kubectl delete secret $namespace $secret > /dev/null
+  fi
+  
+  if [[ $ok -ne 1 ]]; then
+    exit 1
   fi
 fi
 
