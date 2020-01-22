@@ -112,7 +112,7 @@ else
 
   echo "$(date +"%Y/%m/%dT%H:%M:%S")  INFO   secret '$secret' already exists"
   
-  if [[ ! -z "$password" ]]; then
+  if [[ -z "$password" ]]; then
     echo "$(date +"%Y/%m/%dT%H:%M:%S")  WARN   secret '$secret' doesn't have '.password' key"
     # kubectl delete secret $namespace $secret > /dev/null
   fi
