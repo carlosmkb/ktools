@@ -10,7 +10,6 @@ RUN apk add --no-cache \
       openssl \
       iptables \
       openssl-dev && \
-    apk del .build-deps && \
     rm -rf /var/cache/apk/*
 
 RUN [ "$KUBECTL_VERSION" == "latest" ] && \
