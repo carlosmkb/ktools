@@ -2,18 +2,15 @@ FROM alpine:3.11
 
 ENV KUBECTL_VERSION="v1.17.0"
 
-RUN apk add --update \
+RUN apk add --no-cache \
       jq \
       curl \
       bash \
-      python \
-      py-pip \
       gettext \
       openssl \
+      iptables \
       openssl-dev && \
-    pip install --upgrade awscli && \
-    pip install --upgrade yq && \
-    apk -v --purge del py-pip && \
+    apk del .build-deps && \
     rm -rf /var/cache/apk/*
 
 RUN [ "$KUBECTL_VERSION" == "latest" ] && \
